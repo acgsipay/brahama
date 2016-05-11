@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import os
-import sys
 import ssl
 
 from tornado.ioloop import IOLoop
@@ -13,12 +12,12 @@ from settings import params
 from router import routes
 
 if __name__ == '__main__':
-    application = Application(routes, **settings)
+    application = Application(routes, **params)
 
     ssl_options = {
-        "certfile": os.path.join(settings['vault_path'], 'sipay.cert.crt'),
-        "keyfile": os.path.join(settings['vault_path'], 'sipay.key.pem'),
-        "ca_certs": os.path.join(settings['vault_path'], 'sipay.ca.crt'),
+        "certfile": os.path.join(params['vault_path'], 'sipay.cert.crt'),
+        "keyfile": os.path.join(params['vault_path'], 'sipay.key.pem'),
+        "ca_certs": os.path.join(params['vault_path'], 'sipay.ca.crt'),
         "cert_reqs": ssl.CERT_NONE
     }
 

@@ -1,8 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from uuid import uuid1
+import json
 
 from tornado.web import RequestHandler
+
 
 class BaseHandler(RequestHandler):
     def initialize(self):
@@ -26,7 +28,7 @@ class BaseHandler(RequestHandler):
 
         if "Content-Type" in self.headers and self.headers["Content-Type"].startswith('application/json'):
             try: 
-                self.request.json_arguments = json_decode(self.request.body)
+                self.request.json_arguments = json.dumps(self.request.body)
             except Exception, e:
                 pass
 
