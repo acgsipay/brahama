@@ -8,7 +8,20 @@ from tornado.escape import json_decode
 from core.utils.collections import implode, args
 
 
-class BaseHandler(RequestHandler, BaseHandlerParser, BaseHandlerValidator, BaseHandlerFormatter, BaseHandlerError):
+class BaseHandler(RequestHandler):
+    LOGGER_FORMAT = 'uuid=%s; type=%s; code=%s; detail=%s; fromip=%s; %s'
+
+    FORMATTER_FALSE_VALUES = ('false', 'no', 'off', '0', 0, False, None)
+    FORMATTER_TRUE_VALUES = ('true', 'yes', 'on', '1', 1, True)
+
+    FORMATTER_METHODS = {}
+
+    VALIDATION_REGEXP = {
+        'amount': r'^[0-9]{10}$'
+    }
+
+    VALIDATION_METHOD = {}
+
     def initialize(self):
         self.uuid = str(uuid1())
 
@@ -36,9 +49,116 @@ class BaseHandler(RequestHandler, BaseHandlerParser, BaseHandlerValidator, BaseH
         finally:
             return data
 
+    def data_entry_process(self, mandatory, opcional, additional, rules, formats, params):
+        data = {}
 
-class BaseHandlerError(object):
-    LOGGER_FORMAT = 'uuid=%s; type=%s; code=%s; detail=%s; fromip=%s; %s'
+        # Obtención de parametros obligatorios y control de errores
+        if not self.data_entry_mandatory(mandatory, data, params):
+            return False
+
+        # Obtención de parametros opcionales
+        self.data_entry_optional(optional, data, params)
+
+        # Obtención de parametros adicionales
+        self.data_entry_additional(additional, data)
+
+        # Comprobación de reglas de validación y control de errores
+        if not self.data_entry_validate(rules, data):
+            return False
+
+        # Creación de campos calculados
+        self.data_entry_format(formats, data)
+
+        return data
+
+    def data_entry_mandatory(self, keys, data, params):
+        for key in keys:
+            if key in params:
+                data[key] = params[key]
+
+            else:
+                self.data_entry_mandatory_error(key)
+                return False
+
+        return True
+
+    def data_entry_optional(self, items, data, params):
+        for item in items:
+            if isinstance(item, tuple):
+                key, default = item
+
+            else:
+                key, default = (item, None)
+
+            # Comprobar si viene en la petición
+            if item in params:
+                data[key] = params[key]
+
+            else:
+                data[key] = default
+
+    def data_entry_additional(self, items, data):
+        # Añadir campos adicionales a los parametros
+        for key, value in items:
+            data[key] = value
+
+
+    def data_entry_validate(self, rules, data):
+        for args in rules:
+            if not self.validate_field(data, *args):
+                return False
+
+        return True
+
+    def data_entry_format(self, formats, data):
+        for args in formats:
+            self.format_field(data, *args)
+
+    def validate_field(self, data, key, rule, strict=True):
+        value = data[key] if key in data else None
+
+        if (value is None or value == '') and not strict:
+            return True
+
+        if rule in self.VALIDATOR_REGEXP:
+            return self.VALIDATOR_REGEXP[rule].match(value)
+
+        elif rule in self.VALIDATION_METHOD:
+            return self.VALIDATION_METHOD[rule](value)
+
+        else:
+            self.data_entry_validation_error(key, rule, strict)
+            return False
+
+    def add_validation_regexp(self, name, regexp):
+        self.VALIDATION_REGEXP[name] = regexp
+
+    def add_validation_method(self, name, method):
+        self.VALIDATION_METHOD[name] = method
+
+    def format_field(self, data, key, format, name=None, default=None):
+        if name is None:
+            name = key
+
+        if key in data:
+            if format == 'int':
+                value = int(data[key])
+
+            elif format == 'bool':
+                value = data[key] in self.FORMATTER_TRUE_VALUES or data[key] not in self.FORMATTER_FALSE_VALUES
+
+            elif format in self.FORMATTER_METHODS:
+                value = self.FORMATTER_METHODS[format](data, key)
+
+            #TODO: Control de formato no soportado/definido
+            else:
+                pass
+
+        else:
+            value = default
+
+        data[name] = value
+
 
     def log_error(self, type, code, detail, **kwargs):
         self.logger.error(self.LOGGER_FORMAT % (self.uuid, type, code, detail, self.remote_ip, implode(kwargs)))
@@ -131,132 +251,3 @@ class BaseHandlerError(object):
             'message': 'busy_server',
             'payload': {}
         })
-
-
-class BaseHandlerFormatter(object):
-    FORMATTER_FALSE_VALUES = ('false', 'no', 'off', '0', 0, False, None)
-    FORMATTER_TRUE_VALUES = ('true', 'yes', 'on', '1', 1, True)
-
-    FORMATTER_METHODS = {}
-
-    def format_field(self, data, key, format, name=None, default=None):
-        if name is None:
-            name = key
-
-        if key in data:
-            if format == 'int':
-                value = int(data[key])
-
-            elif format == 'bool':
-                value = data[key] in self.FORMATTER_TRUE_VALUES or data[key] not in self.FORMATTER_FALSE_VALUES
-
-            elif format in self.FORMATTER_METHODS:
-                value = self.FORMATTER_METHODS[format](data, key)
-
-            #TODO: Control de formato no soportado/definido
-            else:
-                pass
-
-        else:
-            value = default
-
-        data[name] = value
-
-
-class BaseHandlerValidator(object):
-    # Definir expresiones regulares para validar
-    VALIDATION_REGEXP = {
-        'amount': r'^[0-9]{10}$'
-    }
-
-    # Definir funciones para validar
-    VALIDATION_METHOD = {}
-
-    def validate_field(self, data, key, rule, strict=True):
-        value = data[key] if key in data else None
-
-        if (value is None or value == '') and not strict:
-            return True
-
-        if rule in self.VALIDATOR_REGEXP:
-            return self.VALIDATOR_REGEXP[rule].match(value)
-
-        elif rule in self.VALIDATION_METHOD:
-            return self.VALIDATION_METHOD[rule](value)
-
-        else:
-            self.data_entry_validation_error(key, rule, strict)
-            return False
-
-    def add_validation_regexp(self, name, regexp):
-        self.VALIDATION_REGEXP[name] = regexp
-
-    def add_validation_method(self, name, method):
-        self.VALIDATION_METHOD[name] = method
-
-
-class BaseHandlerParser(object):
-    def data_entry_process(self, mandatory, opcional, additional, rules, formats, params):
-        data = {}
-
-        # Obtención de parametros obligatorios y control de errores
-        if not self.data_entry_mandatory(mandatory, data, params):
-            return False
-
-        # Obtención de parametros opcionales
-        self.data_entry_optional(optional, data, params)
-
-        # Obtención de parametros adicionales
-        self.data_entry_additional(additional, data)
-
-        # Comprobación de reglas de validación y control de errores
-        if not self.data_entry_validate(rules, data):
-            return False
-
-        # Creación de campos calculados
-        self.data_entry_format(formats, data)
-
-        return data
-
-    def data_entry_mandatory(self, keys, data, params):
-        for key in keys:
-            if key in params:
-                data[key] = params[key]
-
-            else:
-                self.data_entry_mandatory_error(key)
-                return False
-
-        return True
-
-    def data_entry_optional(self, items, data, params):
-        for item in items:
-            if isinstance(item, tuple):
-                key, default = item
-
-            else:
-                key, default = (item, None)
-
-            # Comprobar si viene en la petición
-            if item in params:
-                data[key] = params[key]
-
-            else:
-                data[key] = default
-
-    def data_entry_additional(self, items, data):
-        # Añadir campos adicionales a los parametros
-        for key, value in items:
-            data[key] = value
-
-
-    def data_entry_validate(self, rules, data):
-        for args in rules:
-            if not self.validate_field(data, *args):
-                return False
-
-        return True
-
-    def data_entry_format(self, formats, data):
-        for args in formats:
-            self.format_field(data, *args)

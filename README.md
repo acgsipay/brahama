@@ -44,7 +44,7 @@ Todas las trazas tendran:
     - Punto de registro (FILE:LINE): se indicara el fichero y la linea de codigo que lanza el registro de logs.
     - Responsable (NAMESPACE): Espacio de nombres de la modulo.clase.metodo o modulo.funcion
     - Identificador de operación (PARAMS[UUID]): permite unir con el resto de trazas de la operación, en nuestro caso un uuid versión 1.
-    - Tipo (TYPE): Tipo de traza, para indicar si es una traza sobre soap, http...
+    - Tipo (PARAMS[TYPE]): Tipo de traza, para indicar si es una traza sobre soap, http...
 
 Las trazas tienen el siguiente formato:
     DATETIME - LEVEL - PARAMS - ARGS
