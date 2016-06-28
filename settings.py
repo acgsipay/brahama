@@ -54,32 +54,32 @@ params['log.file.main'] = os.path.join(params['log.path'], 'main.log')
 params['log.file.error'] = os.path.join(params['log.path'], 'error.log')
 
 # Ruta al directorio de los ficheros de configuración
-settings['config.path'] = os.path.join(params['storage.path'], 'config')
+params['config.path'] = os.path.join(params['storage.path'], 'config')
 
 # Fichero de configuración principal
-settings['config.file.main'] = os.path.join(settings['config.path'], 'main.conf')
+params['config.file.main'] = os.path.join(params['config.path'], 'main.conf')
 
 # Fichero de configuración por entorno
-settings['config.file.env'] = os.path.join(settings['config.path'], 'main.environment.conf')
+params['config.file.env'] = os.path.join(params['config.path'], 'main.environment.conf')
 
 # Carga del gestor de ficheros de configuración
 configuration = ConfigParser.SafeConfigParser(allow_no_value=True)
-configuration.read([settings['config.file.main'], settings['config.file.env']])
+configuration.read([params['config.file.main'], params['config.file.env']])
 
 # Fichero certificado Clave Privada
-settings['secure.cert'] = os.path.join(settings['vault.path'], configuration.get('secure', 'cert'))
+params['secure.cert'] = os.path.join(params['vault.path'], configuration.get('secure', 'cert'))
 
 # Fichero certificado Clave Publica
-settings['secure.key'] = os.path.join(settings['vault.path'], configuration.get('secure', 'key'))
+params['secure.key'] = os.path.join(params['vault.path'], configuration.get('secure', 'key'))
 
 # Fichero CA
-settings['secure.ca'] = os.path.join(settings['vault.path'], configuration.get('secure', 'ca'))
+params['secure.ca'] = os.path.join(params['vault.path'], configuration.get('secure', 'ca'))
 
 # Servidor de memcached
-settings['memcached.host'] = '127.0.0.1'
+params['memcached.host'] = '127.0.0.1'
 
 # Puerto de memcached
-settings['memcached.port'] = '11211'
+params['memcached.port'] = '11211'
 
 # Tiempo de expiración (importante en producción 5 minutos)
-settings['memcached.expiration'] = 300 if options.env == 'production' else 86400
+params['memcached.expiration'] = 300 if options.env == 'production' else 86400
